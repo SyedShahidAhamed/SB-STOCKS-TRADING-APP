@@ -299,12 +299,3 @@ http://localhost:5173/admin
 - The app fetches stock data from Yahoo Finance endpoints for search, quote, and historical chart data.
 - The repository currently includes user and admin flows, but no real brokerage or live-market execution is implemented.
 
----
-
-# 🗺 Planned / TODO
-
-Possible future improvements include:
-- Watchlist and alert functionality
-- More advanced portfolio analytics and charts
-- Real-time market updates
-- Expanded admin reporting and moderation tools
