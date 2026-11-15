@@ -16,20 +16,35 @@ const app = express();
 // Allowed frontend origins
 const allowedOrigins = [
   'http://localhost:5173',
+  'https://ss-stocks-trading.vercel.app',
+  'https://sb-stocks-trading-38k7o41iv-syedshahidahameds-projects.vercel.app',
   process.env.FRONTEND_URL,
 ].filter(Boolean);
 
 // CORS configuration
-app.use(cors({
+const corsOptions = {
   origin: (origin, callback) => {
+    // Allow requests without an origin and known frontend URLs
     if (!origin || allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+
+    // Allow preview deployments belonging to this Vercel project
+    const isVercelPreview =
+      /^https:\/\/sb-stocks-trading-[a-z0-9-]+-syedshahidahameds-projects\.vercel\.app$/i
+        .test(origin);
+
+    if (isVercelPreview) {
       return callback(null, true);
     }
 
     return callback(new Error('Not allowed by CORS'));
   },
   credentials: true,
-}));
+};
+
+// Apply CORS before API routes
+app.use(cors(corsOptions));
 
 // Parse JSON requests
 app.use(express.json());
@@ -73,7 +88,7 @@ app.use((req, res) => {
 
 // Error handler
 app.use((err, req, res, next) => {
-  console.error(err.stack);
+  console.error('Server Error:', err.message);
 
   res.status(500).json({
     success: false,
