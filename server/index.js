@@ -1,37 +1,50 @@
-require('dotenv').config();
-const express = require('express');
-const cors    = require('cors');
-const connectDB = require('./config/db');
 
-const userRoute        = require('./routes/userRoute');
-const stockRoute       = require('./routes/stockRoute');
-const orderRoute       = require('./routes/orderRoute');
-const transactionRoute = require('./routes/transactionRoute');
+const mongoose = require('mongoose');
 
-connectDB();
+// Reuse MongoDB connection across serverless invocations
+let cached = global.mongoose;
 
-const app  = express();
-const PORT = process.env.PORT || 5000;
+if (!cached) {
+  cached = global.mongoose = {
+    conn: null,
+    promise: null,
+  };
+}
 
-const allowedOrigins = [
-  'http://localhost:5173',
-  process.env.FRONTEND_URL,
-].filter(Boolean);
+const connectDB = async () => {
+  // Check environment variable
+  if (!process.env.MONGODB_URI) {
+    throw new Error('MONGODB_URI is not configured');
+  }
 
-app.use(cors({
-  origin: (origin, cb) => {
-    if (!origin || allowedOrigins.includes(origin)) return cb(null, true);
-    cb(new Error('Not allowed by CORS'));
-  },
-  credentials: true,
-}));
-app.use(express.json());
+  // Return existing connection
+  if (cached.conn && mongoose.connection.readyState === 1) {
+    return cached.conn;
+  }
 
-app.use('/api/users',        userRoute);
-app.use('/api/stocks',       stockRoute);
-app.use('/api/orders',       orderRoute);
-app.use('/api/transactions', transactionRoute);
+  // Create a new connection if needed
+  if (!cached.promise) {
+    cached.promise = mongoose.connect(process.env.MONGODB_URI, {
+      bufferCommands: false,
+      serverSelectionTimeoutMS: 10000,
+    })
+      .then((mongooseInstance) => {
+        console.log(
+          `MongoDB Connected: ${mongooseInstance.connection.host}`
+        );
 
-app.get('/', (req, res) => res.json({ message: 'SB Stocks API running' }));
+        return mongooseInstance;
+      })
+      .catch((error) => {
+        cached.promise = null;
+        cached.conn = null;
+        throw error;
+      });
+  }
 
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+  cached.conn = await cached.promise;
+
+  return cached.conn;
+};
+
+module.exports = connectDB;
